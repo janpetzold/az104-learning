@@ -1,8 +1,6 @@
 # Introduction
 
-This is my own preparation material I created for the [Azure Certified aAdministraotr Associate AZ-104 exam](https://learn.microsoft.com/en-us/credentials/certifications/azure-administrator). The content is primarily from four sources:
-
-https://skillcertpro.com/az-104-exam-questions/
+This is my own preparation material I created for the [Azure Certified Administrator Associate AZ-104 exam](https://learn.microsoft.com/en-us/credentials/certifications/azure-administrator). I did the [AZ-305 exam](https://learn.microsoft.com/en-us/credentials/certifications/exams/az-305/) first so lots of material is already included [in my other prep material](https://github.com/janpetzold/az305-learning).
 
 # Fundamentals
 
@@ -22,13 +20,21 @@ Policy type could be `Microsoft.Network/loadbalancers`, allowed SKUs could be `M
 
 Peering: no overlapping IP addresses. Requires both directions to work.
 
+Subnets can be based on application tiers/layers, e.g. frontend/backend/SQL > three subnets
+
+Network interfaces require a VNet
+
 A Network Security Group (NSG) in Azure is a security feature that helps control inbound and outbound traffic to and from Azure resources within a Virtual Network (VNet). NSGs contain security rules that allow or deny traffic based on factors such as source and destination IP addresses, ports, and protocols. Network interfaces and subnets can be assigned with NSGs.
 
 NSG rules to allow TCP or ICMP traffic for specific ports. Firewall can do the same across multiple VNets.
 
 NSG flow logs allow you to capture and analyze the traffic that is allowed or denied by NSG rules. These logs can be sent to Azure Monitor logs, Azure Storage, or Event Hubs for further analysis.
 
+NSG diagnostic logs enable you to collect information about all clients connecting to some network/load balancer.
+
 Application security groups allow you to group together the network interfaces from multiple virtual machines, and then use the group as the source or destination in an NSG rule. This potentially reduces the number of needed NSG rules. The network interfaces must be in the same virtual network.
+
+A single NSG can contain any number of rules that are needed. Also NSGs can be shared across network interfaces / VMs (e.g. if 10 VMs need exactly the same rules).
 
 `New-AzNetworkSecurityRuleConfig` allows you to create a rule and provide the type, protocol, direction, and port number. `New-AzNetworkSecurityGroup` creates a network security group (NSG).
 
@@ -41,6 +47,8 @@ Azure Network Watcher provides tools to monitor, diagnose, view metrics, and ena
 - Traffic Analysis: focuses on network activity across subscriptions, hot spots, regions
 
 Inspect all network traffic between VMs using Azure Network Watcher Extension & Packet Capture. Packet Capture is also helpful to identify network anomalies/intrusions. 
+
+Flow Logs are primarily used to check allow/deny traffic.
 
 DNS Record type TXT is the text record. It's used to associate text strings with a domain name. Azure and Microsoft 365 use TXT records to verify domain ownership. Azure DNS doesn't support Domain Name System Security Extensions.
 
@@ -60,17 +68,31 @@ Load balancing rules define how traffic is distributed between VMs.
 
 Azure Application Gateway can also be used to balance load to private IP addresses (of VMs).
 
-Standard load balancers balance load across all VMs in a VNet/backend pools, internal load balancers balance load between VMs / VM scale sets.
+Standard load balancers balance load across all VMs in a VNet/backend pools, internal load balancers balance load between VMs / VM scale sets/Availability Sets. Basic Internal Load Balancers need the VMs to be at least in a common Availability Set. 
 
-Site-to-site VPN requires a gateway subnet (it actually also needs to be named "GatewaySubnet") and a local VPN gateway. Point-to-site VPNs require a client certificate to be present.
+Standard Load Balancer supports up to 100 instances, Basic 300. Standard Load Balancer has SLA of 99.99% when using two or more paired healthy VMs.
+
+Site-to-site VPN requires a gateway subnet (it actually also needs to be named "GatewaySubnet") and a local VPN gateway. Point-to-site VPNs require a client certificate to be present (no local gateway).
+
+If the local Public IP address changes, Site-to-Site VPN connections need to be recreated.
 
 A Virtual Network Gateway will handle failover between active and standby instance of Azure VPN gateway. Each Azure VPN gateway needs its own Public IP address.
+
+RDP traffic uses port 3389 via TCP.
 
 # Compute
 
 Spot instance can be evicteed when Azure needs the capacity for other pay-as-you-go workloads or when the price of the spot instance exceeds the maximum price that you have set.
 
 A VM will have a downtime if its size is changed or network interfces are added.
+
+VMs can be redeployed and will be allocated to a different HW cluster in this case. This can be helpful in case of maintenance.
+
+Cloud-init is a widely used approach to customize a Linux VM as it boots for the first time. You can use cloud-init to install packages and write files, or to configure users and security.
+
+There are two orchestration modes for VM scale sets:
+- VM: VMs need to be explicitly added to scale set when created
+- ScaleSetVM: VMs are implicitly created based on config, instance count and AutoScaling rules
 
 DSC extensions can be used to configure VMs during deployment
 
@@ -79,6 +101,14 @@ Ultra SSD: 160.000
 Premium SSD: 20.000
 Standard SSD: 6.000
 Standard HDD: 2.000
+
+Deallocated CPUs still count with regards to limits, so if 8 CPUs are allowed in a region 6 deallocated CPUs leave only 2 usable ones.
+
+Linux and Windows Apps can't be mixed in the same AppService plan. Also a plan only applies for the same region.
+
+AKS: kubenet provisions IP addresses to nodes from an Azure VNet subnet from logically different address space, Azure Container Network Interface assigns IP addresses to the pods from the subnet.
+
+`kubectl apply` deploys apps from Azure container registry in AKS.
 
 Azure Files should be used as persistant storage for Container Instances.
 
@@ -91,14 +121,27 @@ You have an Azure subscription that contains a container app named App1. App1 is
 `New-AzDisk`: Create new managed disk
 `New-AzDataShare`: Create new Azure data share
 `Move-AzResource`: Move resources (e.g. VMs) between subscriptions
+`az vmss scale --new-capacity 4`: Change scaleset to new capacity of 4
 
 Resource Manager deployments require access keys to read secrets from KeyVault.
+
+Resources can be moved between resource groups in different regions with some limitations, e.g. Network Interface can only be moved together with the VM (dependency). Also Public IPs can't be moved across subscriptions.
 
 # Storage & Data
 
 Delete locks can be applied to VMs, subscriptions and resource groups
 
 Storage versioning must be enabled to support replication for both the source and destination account. Change feed must be enabled on the source account.
+
+Azure Storage explorer is sufficient for small data operations (let's say uploading <1GB). Azure Import/Export is usually used for one-time upload of large amount of data.
+
+Import supports Blob and File Storage, Export job supports Blob only as storage types.
+
+Azure File Sync supports only one Cloud endpoint in a Sync group.
+
+UNC syntax for file storage is
+
+https://foo.file.core.windows.net/share/directory/file
 
 Log Analytics supports KQL-based specific [query syntax](https://learn.microsoft.com/en-gb/azure/azure-monitor/logs/get-started-queries) with basic statements like `search`, `where`, `sort`, `top` and operations based on tables (e.g. `SecurityEvent | take 10`) to cover aspects like
 
@@ -112,6 +155,8 @@ Aggregation and visualization are implemented via `summarize` and `render` opera
 Log Analytics can run on different platforms, including other Cloud providers.
 
 Eligible subscriptions for Azure Data Box are Enterprise, CSP and Sponsorship. For a data box order the Owner or Contributor role is mandatory.
+
+Shared Access Signatures are good to limit access to storage accounts (e.g. access for 14 days only). Otherwise use Access Keys.
 
 # Identity
 
@@ -150,9 +195,15 @@ PIM does not allow you to manage the roles Account Admin, Service Admin and Co-A
 
 https://learn.microsoft.com/azure/app-service/troubleshoot-diagnostic-logs
 
-VM Scale Sets and Availability Sets combined with Managed Disk have a defined SLA of 99.95%
+VM Scale Sets and Availability Sets combined with Managed Disk have a defined SLA of 99.95%. Scale sets for themselves are used to scale based on load and have no impact on SLA.
 
 30 days is default retention period of virtual machine backups in the default backup policy (Recovery Service Vault)
+
+Recovery Service Vault and all resources need to be in the same region
+
+Recovering files via Azure Backup from a VM requires a specific script to browse & recover files (as part of File Recovery).
+
+Azure Backup supports VMs and File Servers but not Azure SQL (PaaS), they have their own (automated) backup mechanism.
 
 Before deleting a Recovery Service Vault, all items in the soft delete state must be removed (soft delete enabled by default) 
 
@@ -171,3 +222,5 @@ There are also dynamic threshold metric alerts (define look-back period and allo
 Creating an alert via CLI looks like `az monitor metrics alert create -n NameOfAlert ...`
 
 Alert processing rules can be used to "override" an alert, they modify the alerts as they're being fired (e.g. suppress notification during maintenance period).
+
+Notification limits are 1 SMS/5 minutes, 1 voice call/5 minutes, 100 mails/hour.
